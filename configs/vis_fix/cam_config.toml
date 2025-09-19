@@ -1,0 +1,71 @@
+[setting]
+tittle = "vis_fix"
+cam_entry = "192.168.137.102:5599"
+cap_entry = "192.168.137.102:5577"
+
+cam_config_path = "cam_config.toml"
+cam_config_save_path = "/userdata/camera-ctrl/camera/configs"
+npz_path = "/userdata/camera-ctrl/infrared_correction/vis_fix/vis_fix_corr.yaml"
+
+cameraid = 2
+
+it = "5ms"
+tem = "5t"
+wave = "vis"
+
+video_devices_ctrl = "/dev/video22"
+
+image_width = 2048
+image_height = 2048
+
+camera_power = 0 # 0-关闭 1-开启
+
+[setting.encoder_params]
+fps = 30
+bps = 5000000
+udp_ip = "10.16.22.210"
+udp_port = 8210
+bind_port = 6203
+videoflip_1 = "vertical-flip"
+videoflip_2 = "horizontal-flip"
+fontdesc = "Sans UltraCondensed 0"
+flip_mode = "flip_hv"
+
+[setting.storage_params]
+video_bps = 3000000
+video_fps = 30
+video_seg = 10
+
+video_ip = "10.16.24.211"
+# video_ip = "127.0.0.1"
+# video_port = 3366
+video_port = 3377
+image_ip = "127.0.0.1"
+image_port = 3388
+
+video_path = "/mnt/disk0/video/camera2"
+image_path = "/mnt/disk1/photo/camera2"
+
+storage = "/mnt/disk1"
+
+video_name = "/dev/null" # 视频关：/dev/null "video_%Y%m%d_%H%M%S.h264"
+image_name = "/dev/null"  # 图片关：/dev/null  image_%Y%m%d_%H%M%S.jpg
+
+video_max_files = 10   # 也可以写视频关：0
+image_max_files = 10   # 也可以写图片关：0
+
+[setting.ssd]
+ssd1 = "/mnt/disk0/"  # 存储1
+ssd2 = "/mnt/disk1/"  # 存储2
+
+[setting.preprocess_params]
+nuc = 0
+bd = 2
+flip = 0
+autogain = 1
+manulgain = 0
+autocontrast = 0
+manualcontrast = 0
+
+[setting.sensor]
+size_mm = 0.015

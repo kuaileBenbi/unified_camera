@@ -1,0 +1,73 @@
+[setting]
+tittle = "mwir_zoom"
+cam_entry = "192.168.137.103:5599"
+cap_entry = "192.168.137.103:5577"
+
+cam_config_path = "cam_config.toml"
+cam_config_save_path = "/userdata/camera-ctrl/camera/configs"
+npz_path = "/userdata/camera-ctrl/infrared_correction/mwir_zoom/mwir_zoom_corr.yaml"
+
+cameraid = 0
+
+it = "5ms"
+tem = "5t"
+wave = "mwir"
+
+video_devices = "/dev/video31"
+
+image_width = 640
+image_height = 512
+
+camera_power = 0 # 0-关闭 1-开启
+
+[setting.encoder_params]
+fps = 50
+bps = 1000000
+udp_ip = "10.16.22.210"
+udp_port = 8210
+bind_port = 6204
+flip_mode = "rot90ccw"
+
+[setting.storage_params]
+video_bps = 1000000
+video_fps = 30
+video_seg = 10
+
+# video_ip = "127.0.0.1"
+video_port = 6633
+image_ip = "127.0.0.1"
+image_port = 8833
+
+video_ip = "10.16.24.211"
+
+video_path = "/mnt/disk0/video/camera0"
+image_path = "/mnt/disk0/photo/camera0"
+
+video_name = "/dev/null"  # 视频关：/dev/null  "video_%Y%m%d_%H%M%S.h264"
+image_name = "/dev/null"  # 图片关：/dev/null  "image_%Y%m%d_%H%M%S.jpg"
+
+video_max_files = 10   # 也可以写视频关：0
+image_max_files = 10   # 也可以写图片关：0
+
+[setting.ssd]
+ssd1 = "/mnt/disk0"  # 存储1
+ssd2 = "/mnt/disk1"  # 存储2
+
+[setting.preprocess_params]
+nuc = 0
+bd = 2
+flip = 0
+autogain = 1
+manulgain = 0
+autocontrast = 0
+manualcontrast = 0
+
+[setting.serial]
+port = "/dev/pts/8"
+baudrate = 115200
+parity = "N"
+expected_length = 15
+
+[setting.sensor]
+size_mm = 0.015  # 探测器尺寸
+focus_micro = 3

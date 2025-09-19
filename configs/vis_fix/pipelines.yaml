@@ -1,0 +1,170 @@
+pipelines:
+  live_encoder:
+    type: gst
+    template: >
+      v4l2src device=$device io-mode=2 !
+      video/x-raw,framerate=25/1 !
+      videoconvert !
+      video/x-raw,format=GRAY8 !
+      videoconvert !
+      videoflip method=$videoflip_1 !
+      videoflip method=$videoflip_2 !
+      textoverlay 
+        text="+"
+        font-desc=$fontdesc
+        halignment=center
+        valignment=center
+        color=0xFFFFFFFF
+        shaded-background=false !
+      tee name=enc_t
+      enc_t. ! queue !
+        mpph264enc header-mode=1 gop=25 bps=$bps !
+        rndbuffersize min=1380 max=1380 !
+        multiudpsink
+          clients=$udp_clients
+          sync=false
+          async=false
+          auto-multicast=false
+          bind-port=6203
+      enc_t. ! queue !
+        mpph264enc header-mode=1 gop=25 bps=30000000 !
+        h264parse !
+        tee name=storage_t
+        storage_t. ! queue !
+          splitmuxsink
+            location=$video_location
+            max-size-time=10000000000
+            max-files=$video_max_files
+            async-finalize=true
+        storage_t. ! queue !
+            mppvideodec arm-afbc=false !
+            videorate drop-only=true !
+            video/x-raw,framerate=1/1 !
+            mppjpegenc !
+            multifilesink
+              sync=false
+              location=$image_location
+              max-files=$image_max_files
+    params:
+      device: /dev/video22
+      raw_fps: 25
+      bps: 40000000
+      fontdesc: Sans UltraCondensed 0
+      videoflip_1: vertical-flip 
+      videoflip_2: horizontal-flip
+      udp_clients: 192.168.137.1:23451, 127.0.0.1:5556, 127.0.0.1:5557
+    description: 实时视频编码推流
+  
+  live_det_encoder:
+    type: gst
+    template: >
+      v4l2src device=$device io-mode=2 !
+      video/x-raw,framerate=25/1 !
+      videoconvert !
+      video/x-raw,format=GRAY8 !
+      videoconvert !
+      videoflip method=$videoflip_1 !
+      videoflip method=$videoflip_2 !
+      multiqueue max-size-buffers=1 max-size-bytes=0 max-size-time=0 !
+      tee name=source_t
+        source_t. ! queue max-size-buffers=1 leaky=downstream !
+          videoconvert !
+          cairooverlay name=ovl !
+          textoverlay 
+            text="+"
+            font-desc=$fontdesc
+            halignment=center
+            valignment=center
+            color=0xFFFFFFFF
+            shaded-background=false !
+          videoconvert !
+          video/x-raw,format=NV12,width=2048,height=2048,framerate=25/1 !
+          mpph264enc header-mode=1 gop=25 bps=$bps !
+          rndbuffersize min=1380 max=1380 !
+          multiudpsink
+            clients=$udp_clients
+            sync=false
+            async=false
+            auto-multicast=false
+            bind-port=6203 
+        source_t. ! queue max-size-buffers=1 leaky=downstream !
+          videocrop top=$top bottom=$bottom left=$left right=$right !
+          videoconvert !
+          video/x-raw,format=RGB,width=$crop_width,height=$crop_height,framerate=25/1 !
+          appsink
+            name=vis_det
+            sync=false
+            emit-signals=true
+            max-buffers=1
+            drop=true
+        source_t. ! queue max-size-buffers=1 leaky=downstream !
+          mpph264enc header-mode=1 gop=25 bps=30000000 !
+          h264parse !
+          tee name=storage_t
+            storage_t. ! queue !
+              splitmuxsink
+                location=$video_location
+                max-size-time=10000000000
+                max-files=$video_max_files
+                async-finalize=true
+            storage_t. ! queue !
+              mppvideodec arm-afbc=false !
+              videorate drop-only=true !
+              video/x-raw,framerate=1/1 !
+              mppjpegenc !
+              multifilesink
+                sync=false
+                location=$image_location
+                max-files=$image_max_files 
+    params:
+      device: /dev/video22
+      raw_fps: 25
+      bps: 40000000
+      top: 704
+      bottom: 704
+      left: 704
+      right: 704
+      crop_width: 640
+      crop_height: 640
+      fontdesc: Sans UltraCondensed 0
+      videoflip_1: vertical-flip 
+      videoflip_2: horizontal-flip
+      udp_clients: 192.168.137.1:23451, 127.0.0.1:5556, 127.0.0.1:5557
+    description: 带目标检测实时视频编码推流
+
+  storage_splitvideo:
+    type: subprocess
+    template: >
+      udpsrc address=$host port=$port !
+      h264parse !
+      splitmuxsink name=muxer 
+        muxer-factory=matroskamux
+        max-size-time=$segment_duration
+        max-files=$max_files
+        async-finalize=true
+        location=$output_path
+    params:
+      host: "127.0.0.1"
+      port: 3366
+      max_files: 1
+      segment_duration: 5000000000
+      output_path: video_%02d.mkv
+    description: 分片录像
+
+  storage_singleframe:
+    type: subprocess
+    template: >
+      udpsrc address=$host port=$port !
+      h264parse !
+      mppvideodec arm-afbc=false !
+      videorate drop-only=true !
+      video/x-raw,framerate=$fps !
+      mppjpegenc !
+      multifilesink max-files=$max_files location=$output_path
+    params:
+      host: "127.0.0.1"
+      port: 3388
+      fps: 1/25
+      max_files: 1
+      output_path: frame_%04d.jpg
+    description: 高清图像

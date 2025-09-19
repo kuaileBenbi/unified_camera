@@ -1,0 +1,124 @@
+pipelines:
+  v4l2_source_capturer:
+    type: v4l2
+    template: >
+      gst-launch-1.0 videotestsrc pattern=$pattern is-live=true !
+      video/x-raw,format=RGB,width=640,height=512,framerate=50/1 !
+      videoconvert !
+      video/x-raw,format=GRAY16_LE,width=640,height=512,framerate=50/1 ! 
+      filesink location=/dev/stdout
+    params:
+      pattern: ball
+    description: v4l2捕获相机原始数据到文件描述符
+  
+  gst_source_capturer:
+    type: gst
+    template: >
+      fdsrc fd=$fd !
+      videoparse format=gray16-le width=640 height=512 framerate=50/1 !
+      queue max-size-buffers=2 leaky=downstream !
+      appsink name=proc emit-signals=true sync=false max-buffers=2 drop=true
+    params:
+      fd: 0
+    description: gst从文件描述符读取相机原始数据
+    
+  live_encoder:
+    type: gst
+    template: >
+      appsrc name=proc_encoder is-live=true format=time block=false
+        caps=video/x-raw,format=GRAY8,width=640,height=512,framerate=30/1 !
+      queue leaky=downstream !
+      videoconvert !
+      video/x-raw,format=NV12,width=640,height=512,framerate=30/1 !
+      videoflip method=$videoflip_1 !
+      mpph264enc 
+        header-mode=1
+        bps=$bps 
+        gop=1 !
+      rndbuffersize min=1380 max=1380 !
+      multiudpsink 
+        clients=$udp_clients
+        auto-multicast=$auto_multicast
+        async=true 
+        sync=false
+        qos=true
+        bind-port=6206
+    params:
+      raw_fps: 50
+      bps: 3000
+      udp_clients: "192.168.137.1:23451,127.0.0.1:5556,127.0.0.1:5557"
+      auto_multicast: false
+    description: 实时视频编码推流
+  
+  live_det_encoder:
+    type: gst
+    template: >
+      appsrc name=proc_det_encoder is-live=true format=time block=false
+        caps=video/x-raw,format=RGB,width=640,height=512,framerate=50/1 !
+      videoconvert !
+      video/x-raw,format=NV12,width=640,height=512,framerate=50/1 !
+      mpph265enc 
+        header-mode=1
+        rc-mode=cbr
+        bps=$bps 
+        gop=1 !
+      rndbuffersize min=1380 max=1380 !
+      multiudpsink 
+        clients=$udp_clients
+        auto-multicast=$auto_multicast
+        async=true 
+        sync=false
+        qos=true
+    params:
+      raw_fps: 50
+      bps: 30000000
+      udp_clients: "127.0.0.1:55551"
+      auto_multicast: false
+    description: 实时目标检测编码推流
+
+
+  storage_splitvideo:
+    type: gst
+    template: >
+      udpsrc address=$host port=$port !
+      h265parse !
+      mppvideodec arm-afbc=false !
+      videoconvert !
+      videorate !
+      video/x-raw,framerate=$fps !
+      mpph265enc bps=$bps !
+      h265parse !
+      splitmuxsink name=muxer 
+        muxer-factory=matroskamux
+        max-size-time=$segment_duration
+        max-files=$max_files
+        async-finalize=true
+        location=$output_path
+    params:
+      host: "127.0.0.1"
+      port: 6633
+      bps: 3000000
+      fps: 30
+      max_files: 10
+      segment_duration: 10000000000
+      output_path: video_%04d.mkv
+    description: 分片录像
+
+  storage_singleframe:
+    type: subprocess
+    template: >
+      udpsrc address=$host port=$port !
+      h265parse !
+      mppvideodec arm-afbc=false !
+      videoconvert !
+      videorate drop-only=true !
+      video/x-raw,framerate=$fps !
+      mppjpegenc !
+      multifilesink max-files=$max_files location=$output_path
+    params:
+      host: "127.0.0.1"
+      port: 8833
+      fps: 1/1
+      max_files: 10
+      output_path: frame%04d.jpg
+    description: 高清图像

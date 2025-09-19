@@ -129,6 +129,8 @@ unified_camera/
 
 ### 基本使用
 
+#### 方式一：直接启动（推荐用于开发测试）
+
 ```bash
 # 启动可见光固定焦距相机
 python entry.py --mode vis_fix
@@ -138,6 +140,35 @@ python entry.py --mode mwir_zoom
 
 # 指定配置路径和日志级别
 python entry.py --mode lwir_fix --config-path ./configs --log-level DEBUG
+```
+
+#### 方式二：独立进程启动（推荐用于生产环境）
+
+```bash
+# 使用进程启动器启动相机
+python camera_process.py --mode vis_fix
+
+# 以守护进程模式运行
+python camera_process.py --mode vis_fix --daemon
+
+# 指定PID文件
+python camera_process.py --mode vis_fix --pid-file /var/run/camera-vis_fix.pid
+```
+
+#### 方式三：编程接口启动
+
+```python
+from camera_launcher import start_camera, stop_camera, is_camera_running
+
+# 启动相机
+success = start_camera("vis_fix", config_path="configs", log_level="INFO")
+
+# 检查运行状态
+if is_camera_running("vis_fix"):
+    print("相机正在运行")
+
+# 停止相机
+stop_camera("vis_fix")
 ```
 
 ### 命令行参数
@@ -222,6 +253,65 @@ pipelines:
 - 实时视频流传输
 - H.264编码
 - 可配置的网络参数
+
+## 🔄 进程管理
+
+### 独立进程启动
+
+系统支持将 `UnifiedCameraController` 作为独立进程启动，提供更好的稳定性和资源隔离。
+
+#### 进程启动器功能
+
+- **多进程支持**: 可同时运行多个相机进程
+- **进程管理**: 启动、停止、状态检查
+- **守护进程模式**: 支持后台运行
+- **PID文件管理**: 便于系统服务集成
+- **信号处理**: 优雅的进程终止
+
+#### 使用示例
+
+```python
+from camera_launcher import (
+    start_camera, 
+    stop_camera, 
+    stop_all_cameras,
+    is_camera_running,
+    get_camera_pid,
+    list_running_cameras
+)
+
+# 启动相机
+start_camera("vis_fix")
+
+# 检查状态
+if is_camera_running("vis_fix"):
+    pid = get_camera_pid("vis_fix")
+    print(f"相机运行中，PID: {pid}")
+
+# 列出所有运行的相机
+running = list_running_cameras()
+for mode, pid in running.items():
+    print(f"{mode}: {pid}")
+
+# 停止相机
+stop_camera("vis_fix")
+
+# 停止所有相机
+stop_all_cameras()
+```
+
+#### 命令行工具
+
+```bash
+# 启动相机
+python camera_launcher.py --mode vis_fix --action start
+
+# 停止相机
+python camera_launcher.py --mode vis_fix --action stop
+
+# 检查状态
+python camera_launcher.py --mode vis_fix --action status
+```
 
 ## 🔍 调试和日志
 

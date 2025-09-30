@@ -302,11 +302,29 @@ class ImagePreprocessor:
 
         process_res = self.compensate_blind_pixels(process_res, self.bp_para)
 
+        if identity == "lwir_fix":
+            # 对四周最外圈像素做镜像映射，将内圈像素映射到外圈
+            process_res = self.mirror_mapping(process_res)
+
         process_res = self.stretch_u16(process_res, self.max_val)
 
         process_res = self.apply_sharping(process_res)
 
         return process_res
+
+    def mirror_mapping(self, frame):
+        """
+        对四周最外一圈像素做镜像映射 将倒数第二圈像素映射到最外一圈
+        """
+        # 行方向：第二行 -> 第一行；倒数第二行 -> 倒数第一行
+        frame[0, ...] = frame[1, ...]
+        frame[-1, ...] = frame[-2, ...]
+
+        # 列方向：第二列 -> 第一列；倒数第二列 -> 倒数第一列
+        frame[:, 0, ...] = frame[:, 1, ...]
+        frame[:, -1, ...] = frame[:, -2, ...]
+
+        return frame
 
     def apply_dw_calibration(self, frame, gain_map, offset_map, ref, max_val):
         if gain_map is None or offset_map is None or ref is None:
